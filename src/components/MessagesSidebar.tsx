@@ -85,6 +85,7 @@ export function MessagesSidebar() {
       className={collapsed ? "w-14" : "w-80"}
       collapsible="icon"
       side="right"
+      variant="sidebar"
     >
       <SidebarHeader className="border-b border-border p-4">
         <div className="flex items-center justify-between">
