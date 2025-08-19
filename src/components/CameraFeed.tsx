@@ -14,10 +14,73 @@ interface CameraFeedProps {
 export function CameraFeed({ cameraId, title, initialActive = false }: CameraFeedProps) {
   const [isActive, setIsActive] = useState(initialActive);
   const [isConnected, setIsConnected] = useState(true);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   const toggleStream = () => {
     setIsActive(!isActive);
   };
+
+  const toggleMaximize = () => {
+    setIsMaximized(!isMaximized);
+  };
+
+  if (isMaximized) {
+    return (
+      <div className="fixed inset-0 top-[73px] z-50 bg-background">
+        <div className="relative w-full h-full bg-secondary/20">
+          {isActive ? (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5" />
+              <div className="text-muted-foreground text-lg">
+                Camera Feed Active - {title}
+              </div>
+            </div>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="text-muted-foreground text-lg">
+                Camera Standby - {title}
+              </div>
+            </div>
+          )}
+          
+          {/* Control Overlay */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/80 to-transparent p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Button
+                  variant="secondary"
+                  size="default"
+                  onClick={toggleStream}
+                  className="flex items-center gap-2"
+                >
+                  {isActive ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                  {isActive ? "Stop" : "Start"}
+                </Button>
+                <StatusIndicator 
+                  status={isConnected ? (isActive ? "online" : "warning") : "offline"}
+                  label={isActive ? "LIVE" : "STANDBY"}
+                />
+              </div>
+              
+              <div className="flex gap-2">
+                <Button variant="ghost" size="default">
+                  <Settings className="h-5 w-5" />
+                </Button>
+                <Button variant="ghost" size="default" onClick={toggleMaximize}>
+                  <Maximize2 className="h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Positional Data Overlay */}
+          <div className="absolute bottom-0 right-0 m-6 mb-20">
+            <PositionalData />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Card className="border-border bg-card">
@@ -64,7 +127,7 @@ export function CameraFeed({ cameraId, title, initialActive = false }: CameraFee
                 <Button variant="ghost" size="sm">
                   <Settings className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" onClick={toggleMaximize}>
                   <Maximize2 className="h-4 w-4" />
                 </Button>
               </div>
