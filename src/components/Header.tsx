@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { MessageSquare } from "lucide-react";
 import { useOperationMode } from "@/hooks/useOperationMode";
 
 export function Header() {
   const { mode, isLoading, error } = useOperationMode();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -45,7 +48,16 @@ export function Header() {
               {currentTime.toLocaleTimeString()}
             </div>
           </div>
-          <SidebarTrigger />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const event = new CustomEvent('toggle-messages-sidebar');
+              window.dispatchEvent(event);
+            }}
+          >
+            <MessageSquare className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </header>

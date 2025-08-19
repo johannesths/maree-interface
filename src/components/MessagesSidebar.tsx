@@ -19,10 +19,21 @@ interface Message {
 }
 
 export function MessagesSidebar() {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
+  const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+
+  useEffect(() => {
+    const handleToggle = () => {
+      setIsOpen(prev => !prev);
+    };
+
+    window.addEventListener('toggle-messages-sidebar', handleToggle);
+
+    return () => {
+      window.removeEventListener('toggle-messages-sidebar', handleToggle);
+    };
+  }, []);
 
   useEffect(() => {
     // Replace with your actual websocket endpoint
@@ -80,76 +91,68 @@ export function MessagesSidebar() {
     });
   };
 
-  return (
-    <Sidebar
-      className={collapsed ? "w-14" : "w-80"}
-      collapsible="icon"
-      side="right"
-      variant="sidebar"
-    >
-      <SidebarHeader className="border-b border-border p-4">
-        <div className="flex items-center justify-between">
-          {!collapsed && (
-            <>
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                <span className="font-semibold">Messages</span>
-                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-success' : 'bg-destructive'}`} />
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearMessages}
-                disabled={messages.length === 0}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-        </div>
-      </SidebarHeader>
+  if (!isOpen) return null;
 
-      <SidebarContent>
-        <SidebarGroup>
-          {!collapsed && (
-            <SidebarGroupLabel>
-              Recent Messages ({messages.length})
-            </SidebarGroupLabel>
-          )}
-          
-          <SidebarGroupContent>
-            <ScrollArea className="h-[calc(100vh-200px)]">
-              <div className="space-y-2 p-2">
-                {messages.length === 0 ? (
-                  !collapsed && (
-                    <div className="text-center text-muted-foreground text-sm py-8">
-                      No messages yet
-                    </div>
-                  )
-                ) : (
-                  messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className="p-3 bg-card border border-border rounded-lg space-y-1"
-                    >
-                      {!collapsed && (
-                        <>
-                          <div className="text-xs text-muted-foreground">
-                            {formatTime(message.timestamp)}
-                          </div>
-                          <div className="text-sm break-words">
-                            {message.text}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))
-                )}
+  return (
+    <div className="fixed top-0 right-0 h-full w-80 bg-background border-l border-border z-50">
+      <div className="border-b border-border p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            <span className="font-semibold">Messages</span>
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsOpen(false)}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="p-4">
+        <div className="text-sm text-muted-foreground mb-4">
+          Recent Messages ({messages.length})
+        </div>
+        
+        <ScrollArea className="h-[calc(100vh-150px)]">
+          <div className="space-y-2">
+            {messages.length === 0 ? (
+              <div className="text-center text-muted-foreground text-sm py-8">
+                No messages yet
               </div>
-            </ScrollArea>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-    </Sidebar>
+            ) : (
+              messages.map((message) => (
+                <div
+                  key={message.id}
+                  className="p-3 bg-card border border-border rounded-lg space-y-1"
+                >
+                  <div className="text-xs text-muted-foreground">
+                    {formatTime(message.timestamp)}
+                  </div>
+                  <div className="text-sm break-words">
+                    {message.text}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+
+        <div className="mt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearMessages}
+            disabled={messages.length === 0}
+            className="w-full"
+          >
+            Clear Messages
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
