@@ -23,7 +23,7 @@ export function Header() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <img 
-            src="/lovable-uploads/80f24476-8e26-46e8-8f14-102afeb3dac6.png" 
+            src="/assets/80f24476-8e26-46e8-8f14-102afeb3dac6.png" 
             alt="WARR Logo" 
             className="h-12 w-auto"
           />

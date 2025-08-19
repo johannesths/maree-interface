@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusIndicator } from "./StatusIndicator";
@@ -16,6 +16,12 @@ export function CameraFeed({ cameraId, title, initialActive = false }: CameraFee
   const [isConnected, setIsConnected] = useState(true);
   const [isMaximized, setIsMaximized] = useState(false);
 
+  const backendUrl = useMemo(() => {
+    // Prefer vite env (define VITE_BACKEND_URL), fallback to localhost:8000
+    const fromEnv = (import.meta as any).env?.VITE_BACKEND_URL as string | undefined;
+    return fromEnv?.replace(/\/$/, "") || "http://localhost:8000";
+  }, []);
+
   const toggleStream = () => {
     setIsActive(!isActive);
   };
@@ -29,12 +35,16 @@ export function CameraFeed({ cameraId, title, initialActive = false }: CameraFee
       <div className="fixed inset-0 top-[73px] z-50 bg-background">
         <div className="relative w-full h-full bg-secondary/20">
           {isActive ? (
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5" />
-              <div className="text-muted-foreground text-lg">
-                Camera Feed Active - {title}
-              </div>
-            </div>
+            <>
+              <img
+                src={`${backendUrl}/camera/${cameraId}/mjpeg`}
+                alt={`${title} stream`}
+                className="w-full h-full object-cover"
+                onLoad={() => setIsConnected(true)}
+                onError={() => setIsConnected(false)}
+              />
+              <div className="absolute inset-0 pointer-events-none" />
+            </>
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <div className="text-muted-foreground text-lg">
@@ -96,12 +106,13 @@ export function CameraFeed({ cameraId, title, initialActive = false }: CameraFee
       <CardContent className="p-0">
         <div className="relative aspect-video bg-secondary/20 border-t border-border">
           {isActive ? (
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5" />
-              <div className="text-muted-foreground text-sm">
-                Camera Feed Active
-              </div>
-            </div>
+            <img
+              src={`${backendUrl}/camera/${cameraId}/mjpeg`}
+              alt={`${title} stream`}
+              className="w-full h-full object-cover"
+              onLoad={() => setIsConnected(true)}
+              onError={() => setIsConnected(false)}
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <div className="text-muted-foreground text-sm">
