@@ -5,6 +5,7 @@ import { Navigation } from "./Navigation";
 import { StatusBar } from "./StatusBar";
 import { CameraGrid } from "./CameraGrid";
 import { TelemetryGrid } from "./TelemetryGrid";
+import { MessagesSidebar } from "./MessagesSidebar";
 
 export function RoverDashboard() {
   const [activeTab, setActiveTab] = useState("cameras");
@@ -26,22 +27,25 @@ export function RoverDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
-      <StatusBar />
-      
-      <main className="p-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsContent value="cameras">
-            <CameraGrid />
-          </TabsContent>
-          
-          <TabsContent value="telemetry">
-            <TelemetryGrid telemetry={telemetry} />
-          </TabsContent>
-        </Tabs>
-      </main>
+    <div className="flex min-h-screen w-full">
+      <div className="flex-1 bg-background">
+        <Header />
+        <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+        <StatusBar />
+        
+        <main className="p-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsContent value="cameras">
+              <CameraGrid />
+            </TabsContent>
+            
+            <TabsContent value="telemetry">
+              <TelemetryGrid telemetry={telemetry} />
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
+      <MessagesSidebar />
     </div>
   );
 }
