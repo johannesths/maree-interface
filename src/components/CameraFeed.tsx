@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusIndicator } from "./StatusIndicator";
+import { PositionalData } from "./PositionalData";
 import { Play, Pause, Settings, Maximize2 } from "lucide-react";
 
 interface CameraFeedProps {
@@ -70,6 +71,7 @@ export function CameraFeed({ cameraId, title, initialActive = false }: CameraFee
             </div>
           </div>
         </div>
+        <PositionalData />
       </CardContent>
     </Card>
   );

@@ -20,10 +20,10 @@ export function Header() {
             alt="WARR Logo" 
             className="h-12 w-auto"
           />
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">MAREE Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Real-time monitoring and control</p>
-          </div>
+        </div>
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-foreground">MAREE Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Real-time monitoring and control</p>
         </div>
         <div className="text-right">
           <div className="text-xs text-muted-foreground">Local Time</div>
