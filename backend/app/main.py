@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Response, HTTPException
+from fastapi import FastAPI, Response, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import StreamingResponse
 from contextlib import asynccontextmanager
@@ -6,6 +6,7 @@ import os
 import asyncio
 import threading
 import time
+import math
 from pydantic import BaseModel
 
 # ROS 2 imports
@@ -14,14 +15,17 @@ try:
     from rclpy.executors import MultiThreadedExecutor
     from rclpy.node import Node
     from sensor_msgs.msg import CompressedImage
+    from nav_msgs.msg import Odometry
 except Exception as e:  # noqa: BLE001
     rclpy = None  # type: ignore
     Node = object  # type: ignore
     CompressedImage = object  # type: ignore
+    Odometry = object  # type: ignore
 
-
+# ROS2 topics
 CAM1_TOPIC = os.getenv("CAM1_TOPIC", "/camera/color/image_raw/compressed")
 CAM2_TOPIC = os.getenv("CAM2_TOPIC", "/camera/color/image_raw/compressed")
+ODOM_TOPIC = os.getenv("ODOM_TOPIC", "/odom")
 
 
 class FrameStore:
@@ -44,18 +48,51 @@ class FrameStore:
 
 frame_store = FrameStore()
 
+# SECTION - Odometry data
+class OdomStore:
+    """Thread-safe storage for latest odometry-derived positional data."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._data: dict[str, float] | None = None
+        self._updated_at: float = 0.0
+
+    def set_data(self, data: dict[str, float]) -> None:
+        with self._lock:
+            self._data = data
+            self._updated_at = time.time()
+
+    def get_data(self) -> tuple[dict[str, float] | None, float]:
+        with self._lock:
+            return self._data, self._updated_at
+
+
+odom_store = OdomStore()
+
+
+def quaternion_to_yaw_degrees(x: float, y: float, z: float, w: float) -> float:
+    # Convert quaternion to yaw (Z axis) in degrees
+    # yaw = atan2(2*(w*z + x*y), 1 - 2*(y*y + z*z))
+    siny_cosp = 2.0 * (w * z + x * y)
+    cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
+    yaw_rad = math.atan2(siny_cosp, cosy_cosp)
+    return math.degrees(yaw_rad)
+
 
 class CameraBridgeNode(Node):
-    def __init__(self, cam1_topic: str, cam2_topic: str) -> None:  # type: ignore[override]
+    def __init__(self, cam1_topic: str, cam2_topic: str, odom_topic: str) -> None:  # type: ignore[override]
         super().__init__("maree_camera_bridge")
         self.cam1_topic = cam1_topic
         self.cam2_topic = cam2_topic
+        self.odom_topic = odom_topic
         self._cam1_sub = None
         self._cam2_sub = None
         # Start active by default so UI shows feeds on load; can be toggled off via control API
         self._cam1_active = True
         self._cam2_active = True
         self._update_subscriptions()
+        # Odometry subscription (always on)
+        self.create_subscription(Odometry, self.odom_topic, self._on_odom, qos_profile=10)
 
     def _on_cam1(self, msg: CompressedImage) -> None:
         # msg.data is bytes for CompressedImage
@@ -63,6 +100,29 @@ class CameraBridgeNode(Node):
 
     def _on_cam2(self, msg: CompressedImage) -> None:
         frame_store.set_frame("cam2", bytes(msg.data))
+
+    def _on_odom(self, msg: Odometry) -> None:
+        # Map ROS odom to frontend positional fields
+        px = float(msg.pose.pose.position.x)
+        py = float(msg.pose.pose.position.y)
+        qx = float(msg.pose.pose.orientation.x)
+        qy = float(msg.pose.pose.orientation.y)
+        qz = float(msg.pose.pose.orientation.z)
+        qw = float(msg.pose.pose.orientation.w)
+        vx = float(msg.twist.twist.linear.x)
+        vy = float(msg.twist.twist.linear.y)
+        vz = float(msg.twist.twist.linear.z)
+        heading_deg = quaternion_to_yaw_degrees(qx, qy, qz, qw)
+        speed = math.sqrt(vx * vx + vy * vy + vz * vz)
+        # For lack of geodetic frame, expose x/y as latitude/longitude fields
+        odom_store.set_data(
+            {
+                "latitude": px,
+                "longitude": py,
+                "heading": heading_deg,
+                "speed": speed,
+            }
+        )
 
     def _update_subscriptions(self) -> None:
         # Update cam1 subscription
@@ -92,9 +152,10 @@ class CameraBridgeNode(Node):
 
 
 class RosRunner:
-    def __init__(self, cam1_topic: str, cam2_topic: str) -> None:
+    def __init__(self, cam1_topic: str, cam2_topic: str, odom_topic: str) -> None:
         self.cam1_topic = cam1_topic
         self.cam2_topic = cam2_topic
+        self.odom_topic = odom_topic
         self._executor: MultiThreadedExecutor | None = None
         self._node: CameraBridgeNode | None = None
         self._thread: threading.Thread | None = None
@@ -106,7 +167,7 @@ class RosRunner:
         if self._thread and self._thread.is_alive():
             return
         rclpy.init(args=None)
-        self._node = CameraBridgeNode(self.cam1_topic, self.cam2_topic)
+        self._node = CameraBridgeNode(self.cam1_topic, self.cam2_topic, self.odom_topic)
         self._executor = MultiThreadedExecutor()
         self._executor.add_node(self._node)
 
@@ -130,7 +191,7 @@ class RosRunner:
             self._thread.join(timeout=2.0)
 
 
-ros_runner = RosRunner(CAM1_TOPIC, CAM2_TOPIC)
+ros_runner = RosRunner(CAM1_TOPIC, CAM2_TOPIC, ODOM_TOPIC)
 
 # Lifespan must be defined before creating the FastAPI app
 @asynccontextmanager
@@ -172,7 +233,12 @@ async def camera_control(camera_id: str, payload: CameraControl):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "cam1_topic": CAM1_TOPIC, "cam2_topic": CAM2_TOPIC}
+    return {
+        "status": "ok",
+        "cam1_topic": CAM1_TOPIC,
+        "cam2_topic": CAM2_TOPIC,
+        "odom_topic": ODOM_TOPIC,
+    }
 
 
 def _mjpeg_frame(frame_bytes: bytes) -> bytes:
@@ -205,3 +271,21 @@ async def camera_mjpeg(camera_id: str):
         _stream_generator(camera_id),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
+
+
+# WebSocket for positional data (odometry)
+@app.websocket("/ws/position")
+async def ws_position(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        last_sent_at = 0.0
+        while True:
+            data, updated_at = odom_store.get_data()
+            if data is not None and updated_at > last_sent_at:
+                last_sent_at = updated_at
+                await websocket.send_json(data)
+            # 10 Hz update loop
+            await asyncio.sleep(0.1)
+    except WebSocketDisconnect:
+        # Client disconnected; simply exit handler
+        return
