@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Navigation, Gauge } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface PositionalDataType {
   x: number;
@@ -10,7 +11,11 @@ interface PositionalDataType {
   twist_angular_z: number;
 }
 
-export function PositionalData() {
+interface PositionalDataProps {
+  variant?: "default" | "overlay";
+}
+
+export function PositionalData({ variant = "default" }: PositionalDataProps) {
   const [position, setPosition] = useState<PositionalDataType>({
     x: 0,
     y: 0,
@@ -61,10 +66,26 @@ export function PositionalData() {
     };
   }, []);
 
+  const isOverlay = variant === "overlay";
+  const labelClass = isOverlay ? "text-white/80" : "text-muted-foreground";
+  const iconClass = isOverlay ? "text-white/70" : "text-muted-foreground";
+
   return (
-    <div className="bg-card border rounded-lg p-3 mt-2">
+    <div
+      className={cn(
+        "border rounded-lg p-3 mt-2",
+        isOverlay ? "bg-transparent text-white border-white/30" : "bg-card"
+      )}
+    >
       <div className="flex items-center justify-between mb-2">
-        <h4 className="text-sm font-medium text-foreground">Position Data</h4>
+        <h4
+          className={cn(
+            "text-sm font-medium",
+            isOverlay ? "text-white" : "text-foreground"
+          )}
+        >
+          Position Data
+        </h4>
         <div
           className={`w-2 h-2 rounded-full ${
             isConnected ? "bg-success" : "bg-destructive"
@@ -74,35 +95,35 @@ export function PositionalData() {
 
       <div className="grid grid-cols-2 gap-3 text-xs">
         <div className="flex items-center gap-1">
-          <span className="text-muted-foreground">x:</span>
+          <span className={labelClass}>x:</span>
           <span className="font-mono">{position.x.toFixed(3)}</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-muted-foreground">y:</span>
+          <span className={labelClass}>y:</span>
           <span className="font-mono">{position.y.toFixed(3)}</span>
         </div>
         <div className="flex items-center gap-1">
-          <Navigation className="w-3 h-3 text-muted-foreground" />
-          <span className="text-muted-foreground">yaw:</span>
+          <Navigation className={cn("w-3 h-3", iconClass)} />
+          <span className={labelClass}>yaw:</span>
           <span className="font-mono">{position.yaw_deg.toFixed(1)}°</span>
         </div>
         <div className="flex items-center gap-1">
-          <Gauge className="w-3 h-3 text-muted-foreground" />
-          <span className="text-muted-foreground">twist.lin.x:</span>
+          <Gauge className={cn("w-3 h-3", iconClass)} />
+          <span className={labelClass}>twist.lin.x:</span>
           <span className="font-mono">
             {position.twist_linear_x.toFixed(2)} m/s
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <Gauge className="w-3 h-3 text-muted-foreground" />
-          <span className="text-muted-foreground">twist.lin.y:</span>
+          <Gauge className={cn("w-3 h-3", iconClass)} />
+          <span className={labelClass}>twist.lin.y:</span>
           <span className="font-mono">
             {position.twist_linear_y.toFixed(2)} m/s
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <Gauge className="w-3 h-3 text-muted-foreground" />
-          <span className="text-muted-foreground">twist.ang.z:</span>
+          <Gauge className={cn("w-3 h-3", iconClass)} />
+          <span className={labelClass}>twist.ang.z:</span>
           <span className="font-mono">
             {position.twist_angular_z.toFixed(2)} rad/s
           </span>

@@ -162,13 +162,17 @@ export function TelemetryGrid({ telemetry }: TelemetryGridProps) {
             />
           </div>
           <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <div className="text-muted-foreground">x</div>
-              <div className="font-mono font-semibold">{pos.x.toFixed(3)}</div>
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground">x</span>
+              <span className="font-mono font-semibold ml-auto">
+                {pos.x.toFixed(3)}
+              </span>
             </div>
-            <div>
-              <div className="text-muted-foreground">y</div>
-              <div className="font-mono font-semibold">{pos.y.toFixed(3)}</div>
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground">y</span>
+              <span className="font-mono font-semibold ml-auto">
+                {pos.y.toFixed(3)}
+              </span>
             </div>
             <div className="flex items-center gap-1">
               <Navigation className="w-3 h-3 text-muted-foreground" />

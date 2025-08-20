@@ -139,7 +139,7 @@ export function CameraFeed({
 
           {/* Positional Data Overlay */}
           <div className="absolute bottom-0 right-0 m-6 mb-20">
-            <PositionalData />
+            <PositionalData variant="overlay" />
           </div>
         </div>
       </div>

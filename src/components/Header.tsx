@@ -2,33 +2,55 @@ import { useState, useEffect } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, Battery } from "lucide-react";
 import { useOperationMode } from "@/hooks/useOperationMode";
 
 export function Header() {
   const { mode, isLoading, error } = useOperationMode();
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [batteryVoltage, setBatteryVoltage] = useState<number | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPinkMode, setIsPinkMode] = useState(false);
 
+  // Fetch battery voltage from backend
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+    const fetchBatteryVoltage = async () => {
+      try {
+        const backendUrl =
+          (import.meta as any).env?.VITE_BACKEND_URL?.replace(/\/$/, "") ||
+          "http://localhost:8000";
+        const response = await fetch(`${backendUrl}/api/battery/voltage`);
+        if (response.ok) {
+          const data = await response.json();
+          setBatteryVoltage(data.voltage);
+        }
+      } catch (error) {
+        console.error("Failed to fetch battery voltage:", error);
+      }
+    };
 
-    return () => clearInterval(timer);
+    // Fetch immediately and then every 5 seconds
+    fetchBatteryVoltage();
+    const interval = setInterval(fetchBatteryVoltage, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     if (isPinkMode) {
-      document.documentElement.classList.add('pink-mode');
+      document.documentElement.classList.add("pink-mode");
     } else {
-      document.documentElement.classList.remove('pink-mode');
+      document.documentElement.classList.remove("pink-mode");
     }
   }, [isPinkMode]);
 
   const handleLogoClick = () => {
     setIsPinkMode(!isPinkMode);
+  };
+
+  const getBatteryColor = (voltage: number) => {
+    if (voltage >= 12.0) return "text-green-500";
+    if (voltage >= 11.0) return "text-yellow-500";
+    return "text-red-500";
   };
 
   return (
@@ -62,11 +84,20 @@ export function Header() {
               {isLoading ? "Loading..." : error ? "Error" : mode}
             </Badge>
           </div>
-          <div className="text-right">
-            <div className="text-xs text-muted-foreground">Local Time</div>
-            <div className="text-sm font-mono font-semibold">
-              {currentTime.toLocaleTimeString()}
-            </div>
+          <div className="flex items-center gap-2">
+            <Battery className="h-5 w-5 text-muted-foreground" />
+            <span className="text-base md:text-lg text-muted-foreground">
+              Battery:
+            </span>
+            <span
+              className={`text-base md:text-lg font-mono font-semibold ${
+                batteryVoltage
+                  ? getBatteryColor(batteryVoltage)
+                  : "text-muted-foreground"
+              }`}
+            >
+              {batteryVoltage ? `${batteryVoltage.toFixed(1)}V` : "N/A"}
+            </span>
           </div>
           <Button
             variant="outline"
