@@ -1,5 +1,5 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Activity, Zap } from "lucide-react";
+import { Activity, Zap, Settings } from "lucide-react";
 
 interface NavigationProps {
   activeTab: string;
@@ -10,7 +10,7 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
   return (
     <div className="border-b bg-card px-6 py-2">
       <Tabs value={activeTab} onValueChange={onTabChange}>
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-md grid-cols-3">
           <TabsTrigger value="cameras" className="flex items-center gap-2">
             <Activity className="h-4 w-4" />
             Cameras
@@ -18,6 +18,10 @@ export function Navigation({ activeTab, onTabChange }: NavigationProps) {
           <TabsTrigger value="telemetry" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
             Telemetry
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Settings
           </TabsTrigger>
         </TabsList>
       </Tabs>

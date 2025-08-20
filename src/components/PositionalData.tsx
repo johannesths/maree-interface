@@ -1,19 +1,23 @@
 import { useState, useEffect, useMemo } from "react";
-import { MapPin, Navigation, Gauge } from "lucide-react";
+import { Navigation, Gauge } from "lucide-react";
 
 interface PositionalDataType {
-  latitude: number;
-  longitude: number;
-  heading: number;
-  speed: number;
+  x: number;
+  y: number;
+  yaw_deg: number;
+  twist_linear_x: number;
+  twist_linear_y: number;
+  twist_angular_z: number;
 }
 
 export function PositionalData() {
   const [position, setPosition] = useState<PositionalDataType>({
-    latitude: 0,
-    longitude: 0,
-    heading: 0,
-    speed: 0,
+    x: 0,
+    y: 0,
+    yaw_deg: 0,
+    twist_linear_x: 0,
+    twist_linear_y: 0,
+    twist_angular_z: 0,
   });
   const [isConnected, setIsConnected] = useState(false);
 
@@ -70,27 +74,38 @@ export function PositionalData() {
 
       <div className="grid grid-cols-2 gap-3 text-xs">
         <div className="flex items-center gap-1">
-          <MapPin className="w-3 h-3 text-muted-foreground" />
-          <span className="text-muted-foreground">Lat:</span>
-          <span className="font-mono">{position.latitude.toFixed(6)}</span>
+          <span className="text-muted-foreground">x:</span>
+          <span className="font-mono">{position.x.toFixed(3)}</span>
         </div>
-
         <div className="flex items-center gap-1">
-          <MapPin className="w-3 h-3 text-muted-foreground" />
-          <span className="text-muted-foreground">Lng:</span>
-          <span className="font-mono">{position.longitude.toFixed(6)}</span>
+          <span className="text-muted-foreground">y:</span>
+          <span className="font-mono">{position.y.toFixed(3)}</span>
         </div>
-
         <div className="flex items-center gap-1">
           <Navigation className="w-3 h-3 text-muted-foreground" />
-          <span className="text-muted-foreground">Heading:</span>
-          <span className="font-mono">{position.heading.toFixed(1)}°</span>
+          <span className="text-muted-foreground">yaw:</span>
+          <span className="font-mono">{position.yaw_deg.toFixed(1)}°</span>
         </div>
-
         <div className="flex items-center gap-1">
           <Gauge className="w-3 h-3 text-muted-foreground" />
-          <span className="text-muted-foreground">Speed:</span>
-          <span className="font-mono">{position.speed.toFixed(2)} m/s</span>
+          <span className="text-muted-foreground">twist.lin.x:</span>
+          <span className="font-mono">
+            {position.twist_linear_x.toFixed(2)} m/s
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Gauge className="w-3 h-3 text-muted-foreground" />
+          <span className="text-muted-foreground">twist.lin.y:</span>
+          <span className="font-mono">
+            {position.twist_linear_y.toFixed(2)} m/s
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Gauge className="w-3 h-3 text-muted-foreground" />
+          <span className="text-muted-foreground">twist.ang.z:</span>
+          <span className="font-mono">
+            {position.twist_angular_z.toFixed(2)} rad/s
+          </span>
         </div>
       </div>
     </div>

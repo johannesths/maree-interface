@@ -22,6 +22,7 @@ except Exception as e:  # noqa: BLE001
     CompressedImage = object  # type: ignore
     Odometry = object  # type: ignore
 
+
 # ROS2 topics
 CAM1_TOPIC = os.getenv("CAM1_TOPIC", "/camera/color/image_raw/compressed")
 CAM2_TOPIC = os.getenv("CAM2_TOPIC", "/camera/color/image_raw/compressed")
@@ -47,6 +48,7 @@ class FrameStore:
 
 
 frame_store = FrameStore()
+
 
 # SECTION - Odometry data
 class OdomStore:
@@ -87,12 +89,13 @@ class CameraBridgeNode(Node):
         self.odom_topic = odom_topic
         self._cam1_sub = None
         self._cam2_sub = None
+        self._odom_sub = None
         # Start active by default so UI shows feeds on load; can be toggled off via control API
         self._cam1_active = True
         self._cam2_active = True
         self._update_subscriptions()
         # Odometry subscription (always on)
-        self.create_subscription(Odometry, self.odom_topic, self._on_odom, qos_profile=10)
+        self._odom_sub = self.create_subscription(Odometry, self.odom_topic, self._on_odom, qos_profile=10)
 
     def _on_cam1(self, msg: CompressedImage) -> None:
         # msg.data is bytes for CompressedImage
@@ -102,25 +105,26 @@ class CameraBridgeNode(Node):
         frame_store.set_frame("cam2", bytes(msg.data))
 
     def _on_odom(self, msg: Odometry) -> None:
-        # Map ROS odom to frontend positional fields
+        # Extract pose (x, y, yaw_deg)
         px = float(msg.pose.pose.position.x)
         py = float(msg.pose.pose.position.y)
         qx = float(msg.pose.pose.orientation.x)
         qy = float(msg.pose.pose.orientation.y)
         qz = float(msg.pose.pose.orientation.z)
         qw = float(msg.pose.pose.orientation.w)
+        yaw_deg = quaternion_to_yaw_degrees(qx, qy, qz, qw)
+        # Extract twist (linear x, linear y, angular z)
         vx = float(msg.twist.twist.linear.x)
         vy = float(msg.twist.twist.linear.y)
-        vz = float(msg.twist.twist.linear.z)
-        heading_deg = quaternion_to_yaw_degrees(qx, qy, qz, qw)
-        speed = math.sqrt(vx * vx + vy * vy + vz * vz)
-        # For lack of geodetic frame, expose x/y as latitude/longitude fields
+        wz = float(msg.twist.twist.angular.z)
         odom_store.set_data(
             {
-                "latitude": px,
-                "longitude": py,
-                "heading": heading_deg,
-                "speed": speed,
+                "x": px,
+                "y": py,
+                "yaw_deg": yaw_deg,
+                "twist_linear_x": vx,
+                "twist_linear_y": vy,
+                "twist_angular_z": wz,
             }
         )
 
@@ -149,6 +153,37 @@ class CameraBridgeNode(Node):
         elif camera_id == "cam2":
             self._cam2_active = active
         self._update_subscriptions()
+
+    def update_topics(self, cam1_topic: str | None, cam2_topic: str | None, odom_topic: str | None) -> dict[str, str]:
+        changed: dict[str, str] = {}
+        # Camera 1
+        if cam1_topic and cam1_topic != self.cam1_topic:
+            # Re-subscribe if active
+            if self._cam1_sub is not None:
+                self.destroy_subscription(self._cam1_sub)
+                self._cam1_sub = None
+            self.cam1_topic = cam1_topic
+            if self._cam1_active:
+                self._cam1_sub = self.create_subscription(CompressedImage, self.cam1_topic, self._on_cam1, qos_profile=10)
+            changed["cam1_topic"] = self.cam1_topic
+        # Camera 2
+        if cam2_topic and cam2_topic != self.cam2_topic:
+            if self._cam2_sub is not None:
+                self.destroy_subscription(self._cam2_sub)
+                self._cam2_sub = None
+            self.cam2_topic = cam2_topic
+            if self._cam2_active:
+                self._cam2_sub = self.create_subscription(CompressedImage, self.cam2_topic, self._on_cam2, qos_profile=10)
+            changed["cam2_topic"] = self.cam2_topic
+        # Odometry
+        if odom_topic and odom_topic != self.odom_topic:
+            if self._odom_sub is not None:
+                self.destroy_subscription(self._odom_sub)
+                self._odom_sub = None
+            self.odom_topic = odom_topic
+            self._odom_sub = self.create_subscription(Odometry, self.odom_topic, self._on_odom, qos_profile=10)
+            changed["odom_topic"] = self.odom_topic
+        return changed
 
 
 class RosRunner:
@@ -189,6 +224,18 @@ class RosRunner:
             self._executor.shutdown()
         if self._thread is not None and self._thread.is_alive():
             self._thread.join(timeout=2.0)
+
+    def update_topics(self, cam1_topic: str | None, cam2_topic: str | None, odom_topic: str | None) -> dict[str, str]:
+        if self._node is None:
+            # Not started yet; update initial topics to be used at start
+            if cam1_topic:
+                self.cam1_topic = cam1_topic
+            if cam2_topic:
+                self.cam2_topic = cam2_topic
+            if odom_topic:
+                self.odom_topic = odom_topic
+            return {k: v for k, v in (("cam1_topic", self.cam1_topic), ("cam2_topic", self.cam2_topic), ("odom_topic", self.odom_topic))}
+        return self._node.update_topics(cam1_topic, cam2_topic, odom_topic)
 
 
 ros_runner = RosRunner(CAM1_TOPIC, CAM2_TOPIC, ODOM_TOPIC)
@@ -231,13 +278,36 @@ async def camera_control(camera_id: str, payload: CameraControl):
     return {"camera_id": camera_id, "active": payload.active}
 
 
+class TopicsConfig(BaseModel):
+    cam1_topic: str | None = None
+    cam2_topic: str | None = None
+    odom_topic: str | None = None
+
+
+@app.get("/config/topics")
+async def get_topics_config():
+    node = ros_runner._node
+    return {
+        "cam1_topic": node.cam1_topic if node else ros_runner.cam1_topic,
+        "cam2_topic": node.cam2_topic if node else ros_runner.cam2_topic,
+        "odom_topic": node.odom_topic if node else ros_runner.odom_topic,
+    }
+
+
+@app.put("/config/topics")
+async def update_topics_config(cfg: TopicsConfig):
+    changed = ros_runner.update_topics(cfg.cam1_topic, cfg.cam2_topic, cfg.odom_topic)
+    return {"updated": changed}
+
+
 @app.get("/health")
 def health():
+    node = ros_runner._node
     return {
         "status": "ok",
-        "cam1_topic": CAM1_TOPIC,
-        "cam2_topic": CAM2_TOPIC,
-        "odom_topic": ODOM_TOPIC,
+        "cam1_topic": node.cam1_topic if node else ros_runner.cam1_topic,
+        "cam2_topic": node.cam2_topic if node else ros_runner.cam2_topic,
+        "odom_topic": node.odom_topic if node else ros_runner.odom_topic,
     }
 
 
