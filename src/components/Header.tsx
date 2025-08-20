@@ -9,6 +9,7 @@ export function Header() {
   const { mode, isLoading, error } = useOperationMode();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isPinkMode, setIsPinkMode] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -18,6 +19,18 @@ export function Header() {
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (isPinkMode) {
+      document.documentElement.classList.add('pink-mode');
+    } else {
+      document.documentElement.classList.remove('pink-mode');
+    }
+  }, [isPinkMode]);
+
+  const handleLogoClick = () => {
+    setIsPinkMode(!isPinkMode);
+  };
+
   return (
     <header className="border-b bg-card px-6 py-4">
       <div className="flex items-center justify-between">
@@ -25,7 +38,8 @@ export function Header() {
           <img
             src="/assets/80f24476-8e26-46e8-8f14-102afeb3dac6.png"
             alt="WARR Logo"
-            className="h-12 w-auto"
+            className="h-12 w-auto cursor-pointer transition-transform hover:scale-105"
+            onClick={handleLogoClick}
           />
         </div>
         <div className="text-center flex-1">
