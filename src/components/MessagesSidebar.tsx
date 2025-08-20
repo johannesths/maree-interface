@@ -25,20 +25,20 @@ export function MessagesSidebar() {
 
   useEffect(() => {
     const handleToggle = () => {
-      setIsOpen(prev => !prev);
+      setIsOpen((prev) => !prev);
     };
 
-    window.addEventListener('toggle-messages-sidebar', handleToggle);
+    window.addEventListener("toggle-messages-sidebar", handleToggle);
 
     return () => {
-      window.removeEventListener('toggle-messages-sidebar', handleToggle);
+      window.removeEventListener("toggle-messages-sidebar", handleToggle);
     };
   }, []);
 
   useEffect(() => {
     // Replace with your actual websocket endpoint
-    const ws = new WebSocket('ws://localhost:8000/ws/messages');
-    
+    const ws = new WebSocket("ws://localhost:8000/ws/messages");
+
     ws.onopen = () => {
       setIsConnected(true);
     };
@@ -49,18 +49,18 @@ export function MessagesSidebar() {
         const newMessage: Message = {
           id: Date.now().toString(),
           text: data.text || data.message || event.data,
-          timestamp: new Date()
+          timestamp: new Date(),
         };
-        
-        setMessages(prev => [newMessage, ...prev].slice(0, 100)); // Keep last 100 messages
+
+        setMessages((prev) => [newMessage, ...prev].slice(0, 100)); // Keep last 100 messages
       } catch (error) {
         // If not JSON, treat as plain text
         const newMessage: Message = {
           id: Date.now().toString(),
           text: event.data,
-          timestamp: new Date()
+          timestamp: new Date(),
         };
-        setMessages(prev => [newMessage, ...prev].slice(0, 100));
+        setMessages((prev) => [newMessage, ...prev].slice(0, 100));
       }
     };
 
@@ -69,7 +69,7 @@ export function MessagesSidebar() {
     };
 
     ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error("WebSocket error:", error);
       setIsConnected(false);
     };
 
@@ -83,11 +83,11 @@ export function MessagesSidebar() {
   };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', { 
+    return date.toLocaleTimeString("en-US", {
       hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     });
   };
 
@@ -99,24 +99,20 @@ export function MessagesSidebar() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
-            <span className="font-semibold">Messages</span>
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+            <span className="font-semibold">Joystick Messages</span>
+            <div
+              className={`w-2 h-2 rounded-full ${
+                isConnected ? "bg-green-500" : "bg-red-500"
+              }`}
+            />
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsOpen(false)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
             <X className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
       <div className="p-4">
-        <div className="text-sm text-muted-foreground mb-4">
-          Recent Messages ({messages.length})
-        </div>
-        
         <ScrollArea className="h-[calc(100vh-150px)]">
           <div className="space-y-2">
             {messages.length === 0 ? (
@@ -132,9 +128,7 @@ export function MessagesSidebar() {
                   <div className="text-xs text-muted-foreground">
                     {formatTime(message.timestamp)}
                   </div>
-                  <div className="text-sm break-words">
-                    {message.text}
-                  </div>
+                  <div className="text-sm break-words">{message.text}</div>
                 </div>
               ))
             )}

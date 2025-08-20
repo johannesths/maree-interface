@@ -7,6 +7,7 @@ type TopicsConfig = {
   cam1_topic: string;
   cam2_topic: string;
   odom_topic: string;
+  operation_mode_topic: string;
 };
 
 export function SettingsPage() {
@@ -21,6 +22,7 @@ export function SettingsPage() {
     cam1_topic: "",
     cam2_topic: "",
     odom_topic: "",
+    operation_mode_topic: "",
   });
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -91,6 +93,18 @@ export function SettingsPage() {
               setCfg((c) => ({ ...c, cam2_topic: e.target.value }))
             }
             placeholder="/camera/right/image_raw/compressed"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm text-muted-foreground">
+            Operation Mode Topic
+          </label>
+          <Input
+            value={cfg.operation_mode_topic}
+            onChange={(e) =>
+              setCfg((c) => ({ ...c, operation_mode_topic: e.target.value }))
+            }
+            placeholder="/operation_mode"
           />
         </div>
         <div className="space-y-2">

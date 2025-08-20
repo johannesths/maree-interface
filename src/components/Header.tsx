@@ -22,22 +22,28 @@ export function Header() {
     <header className="border-b bg-card px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <img 
-            src="/assets/80f24476-8e26-46e8-8f14-102afeb3dac6.png" 
-            alt="WARR Logo" 
+          <img
+            src="/assets/80f24476-8e26-46e8-8f14-102afeb3dac6.png"
+            alt="WARR Logo"
             className="h-12 w-auto"
           />
         </div>
         <div className="text-center flex-1">
-          <h1 className="text-2xl font-bold text-foreground">MAREE Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Real-time monitoring and control</p>
+          <h1 className="text-2xl font-bold text-foreground">
+            MAREE Dashboard
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Real-time monitoring and control
+          </p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Mode:</span>
-            <Badge 
+            <span className="text-base md:text-lg text-muted-foreground">
+              Mode:
+            </span>
+            <Badge
               variant={mode === "autonomous" ? "default" : "secondary"}
-              className="capitalize"
+              className="capitalize text-base md:text-lg px-3 py-1"
             >
               {isLoading ? "Loading..." : error ? "Error" : mode}
             </Badge>
@@ -52,7 +58,7 @@ export function Header() {
             variant="outline"
             size="sm"
             onClick={() => {
-              const event = new CustomEvent('toggle-messages-sidebar');
+              const event = new CustomEvent("toggle-messages-sidebar");
               window.dispatchEvent(event);
             }}
           >

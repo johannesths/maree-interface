@@ -16,17 +16,20 @@ try:
     from rclpy.node import Node
     from sensor_msgs.msg import CompressedImage
     from nav_msgs.msg import Odometry
+    from std_msgs.msg import String as RosString
 except Exception as e:  # noqa: BLE001
     rclpy = None  # type: ignore
     Node = object  # type: ignore
     CompressedImage = object  # type: ignore
     Odometry = object  # type: ignore
+    RosString = object  # type: ignore
 
 
 # ROS2 topics
 CAM1_TOPIC = os.getenv("CAM1_TOPIC", "/camera/color/image_raw/compressed")
 CAM2_TOPIC = os.getenv("CAM2_TOPIC", "/camera/color/image_raw/compressed")
 ODOM_TOPIC = os.getenv("ODOM_TOPIC", "/odom")
+OPERATION_MODE_TOPIC = os.getenv("OPERATION_MODE_TOPIC", "/operation_mode")
 
 
 class FrameStore:
@@ -72,6 +75,26 @@ class OdomStore:
 odom_store = OdomStore()
 
 
+# SECTION - Operation mode data
+class ModeStore:
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._mode: str = "joystick"
+        self._updated_at: float = 0.0
+
+    def set_mode(self, mode: str) -> None:
+        with self._lock:
+            self._mode = mode
+            self._updated_at = time.time()
+
+    def get_mode(self) -> tuple[str, float]:
+        with self._lock:
+            return self._mode, self._updated_at
+
+
+mode_store = ModeStore()
+
+
 def quaternion_to_yaw_degrees(x: float, y: float, z: float, w: float) -> float:
     # Convert quaternion to yaw (Z axis) in degrees
     # yaw = atan2(2*(w*z + x*y), 1 - 2*(y*y + z*z))
@@ -82,20 +105,24 @@ def quaternion_to_yaw_degrees(x: float, y: float, z: float, w: float) -> float:
 
 
 class CameraBridgeNode(Node):
-    def __init__(self, cam1_topic: str, cam2_topic: str, odom_topic: str) -> None:  # type: ignore[override]
+    def __init__(self, cam1_topic: str, cam2_topic: str, odom_topic: str, op_mode_topic: str) -> None:  # type: ignore[override]
         super().__init__("maree_camera_bridge")
         self.cam1_topic = cam1_topic
         self.cam2_topic = cam2_topic
         self.odom_topic = odom_topic
+        self.op_mode_topic = op_mode_topic
         self._cam1_sub = None
         self._cam2_sub = None
         self._odom_sub = None
+        self._opmode_sub = None
         # Start active by default so UI shows feeds on load; can be toggled off via control API
         self._cam1_active = True
         self._cam2_active = True
         self._update_subscriptions()
         # Odometry subscription (always on)
         self._odom_sub = self.create_subscription(Odometry, self.odom_topic, self._on_odom, qos_profile=10)
+        # Operation mode (always on)
+        self._opmode_sub = self.create_subscription(RosString, self.op_mode_topic, self._on_mode, qos_profile=10)
 
     def _on_cam1(self, msg: CompressedImage) -> None:
         # msg.data is bytes for CompressedImage
@@ -128,6 +155,9 @@ class CameraBridgeNode(Node):
             }
         )
 
+    def _on_mode(self, msg: RosString) -> None:
+        mode_store.set_mode(str(msg.data))
+
     def _update_subscriptions(self) -> None:
         # Update cam1 subscription
         if self._cam1_active and self._cam1_sub is None:
@@ -154,7 +184,7 @@ class CameraBridgeNode(Node):
             self._cam2_active = active
         self._update_subscriptions()
 
-    def update_topics(self, cam1_topic: str | None, cam2_topic: str | None, odom_topic: str | None) -> dict[str, str]:
+    def update_topics(self, cam1_topic: str | None, cam2_topic: str | None, odom_topic: str | None, op_mode_topic: str | None) -> dict[str, str]:
         changed: dict[str, str] = {}
         # Camera 1
         if cam1_topic and cam1_topic != self.cam1_topic:
@@ -183,14 +213,23 @@ class CameraBridgeNode(Node):
             self.odom_topic = odom_topic
             self._odom_sub = self.create_subscription(Odometry, self.odom_topic, self._on_odom, qos_profile=10)
             changed["odom_topic"] = self.odom_topic
+        # Operation mode
+        if op_mode_topic and op_mode_topic != self.op_mode_topic:
+            if self._opmode_sub is not None:
+                self.destroy_subscription(self._opmode_sub)
+                self._opmode_sub = None
+            self.op_mode_topic = op_mode_topic
+            self._opmode_sub = self.create_subscription(RosString, self.op_mode_topic, self._on_mode, qos_profile=10)
+            changed["operation_mode_topic"] = self.op_mode_topic
         return changed
 
 
 class RosRunner:
-    def __init__(self, cam1_topic: str, cam2_topic: str, odom_topic: str) -> None:
+    def __init__(self, cam1_topic: str, cam2_topic: str, odom_topic: str, op_mode_topic: str) -> None:
         self.cam1_topic = cam1_topic
         self.cam2_topic = cam2_topic
         self.odom_topic = odom_topic
+        self.op_mode_topic = op_mode_topic
         self._executor: MultiThreadedExecutor | None = None
         self._node: CameraBridgeNode | None = None
         self._thread: threading.Thread | None = None
@@ -202,7 +241,7 @@ class RosRunner:
         if self._thread and self._thread.is_alive():
             return
         rclpy.init(args=None)
-        self._node = CameraBridgeNode(self.cam1_topic, self.cam2_topic, self.odom_topic)
+        self._node = CameraBridgeNode(self.cam1_topic, self.cam2_topic, self.odom_topic, self.op_mode_topic)
         self._executor = MultiThreadedExecutor()
         self._executor.add_node(self._node)
 
@@ -225,7 +264,7 @@ class RosRunner:
         if self._thread is not None and self._thread.is_alive():
             self._thread.join(timeout=2.0)
 
-    def update_topics(self, cam1_topic: str | None, cam2_topic: str | None, odom_topic: str | None) -> dict[str, str]:
+    def update_topics(self, cam1_topic: str | None, cam2_topic: str | None, odom_topic: str | None, op_mode_topic: str | None) -> dict[str, str]:
         if self._node is None:
             # Not started yet; update initial topics to be used at start
             if cam1_topic:
@@ -234,11 +273,18 @@ class RosRunner:
                 self.cam2_topic = cam2_topic
             if odom_topic:
                 self.odom_topic = odom_topic
-            return {k: v for k, v in (("cam1_topic", self.cam1_topic), ("cam2_topic", self.cam2_topic), ("odom_topic", self.odom_topic))}
-        return self._node.update_topics(cam1_topic, cam2_topic, odom_topic)
+            if op_mode_topic:
+                self.op_mode_topic = op_mode_topic
+            return {
+                "cam1_topic": self.cam1_topic,
+                "cam2_topic": self.cam2_topic,
+                "odom_topic": self.odom_topic,
+                "operation_mode_topic": self.op_mode_topic,
+            }
+        return self._node.update_topics(cam1_topic, cam2_topic, odom_topic, op_mode_topic)
 
 
-ros_runner = RosRunner(CAM1_TOPIC, CAM2_TOPIC, ODOM_TOPIC)
+ros_runner = RosRunner(CAM1_TOPIC, CAM2_TOPIC, ODOM_TOPIC, OPERATION_MODE_TOPIC)
 
 # Lifespan must be defined before creating the FastAPI app
 @asynccontextmanager
@@ -282,6 +328,7 @@ class TopicsConfig(BaseModel):
     cam1_topic: str | None = None
     cam2_topic: str | None = None
     odom_topic: str | None = None
+    operation_mode_topic: str | None = None
 
 
 @app.get("/config/topics")
@@ -291,13 +338,20 @@ async def get_topics_config():
         "cam1_topic": node.cam1_topic if node else ros_runner.cam1_topic,
         "cam2_topic": node.cam2_topic if node else ros_runner.cam2_topic,
         "odom_topic": node.odom_topic if node else ros_runner.odom_topic,
+        "operation_mode_topic": node.op_mode_topic if node else ros_runner.op_mode_topic,
     }
 
 
 @app.put("/config/topics")
 async def update_topics_config(cfg: TopicsConfig):
-    changed = ros_runner.update_topics(cfg.cam1_topic, cfg.cam2_topic, cfg.odom_topic)
+    changed = ros_runner.update_topics(cfg.cam1_topic, cfg.cam2_topic, cfg.odom_topic, cfg.operation_mode_topic)
     return {"updated": changed}
+
+
+@app.get("/api/operation-mode")
+async def get_operation_mode():
+    mode, _ = mode_store.get_mode()
+    return {"mode": mode}
 
 
 @app.get("/health")
@@ -308,6 +362,7 @@ def health():
         "cam1_topic": node.cam1_topic if node else ros_runner.cam1_topic,
         "cam2_topic": node.cam2_topic if node else ros_runner.cam2_topic,
         "odom_topic": node.odom_topic if node else ros_runner.odom_topic,
+        "operation_mode_topic": node.op_mode_topic if node else ros_runner.op_mode_topic,
     }
 
 
