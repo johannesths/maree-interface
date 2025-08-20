@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusIndicator } from "./StatusIndicator";
@@ -11,20 +11,68 @@ interface CameraFeedProps {
   initialActive?: boolean;
 }
 
-export function CameraFeed({ cameraId, title, initialActive = false }: CameraFeedProps) {
+export function CameraFeed({
+  cameraId,
+  title,
+  initialActive = false,
+}: CameraFeedProps) {
   const [isActive, setIsActive] = useState(initialActive);
   const [isConnected, setIsConnected] = useState(true);
   const [isMaximized, setIsMaximized] = useState(false);
 
   const backendUrl = useMemo(() => {
     // Prefer vite env (define VITE_BACKEND_URL), fallback to localhost:8000
-    const fromEnv = (import.meta as any).env?.VITE_BACKEND_URL as string | undefined;
+    const fromEnv = (import.meta as any).env?.VITE_BACKEND_URL as
+      | string
+      | undefined;
     return fromEnv?.replace(/\/$/, "") || "http://localhost:8000";
   }, []);
 
-  const toggleStream = () => {
-    setIsActive(!isActive);
+  const toggleStream = async () => {
+    const newActive = !isActive;
+    try {
+      const response = await fetch(`${backendUrl}/camera/${cameraId}/control`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: newActive }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      setIsActive(newActive);
+      if (!newActive) {
+        setIsConnected(false);
+      }
+    } catch (err) {
+      // keep previous state if backend call fails
+      // eslint-disable-next-line no-console
+      console.error("Failed to toggle camera subscription", err);
+    }
   };
+
+  // Ensure backend subscription state matches initialActive on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const response = await fetch(
+          `${backendUrl}/camera/${cameraId}/control`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ active: isActive }),
+          }
+        );
+        if (!response.ok) {
+          // eslint-disable-next-line no-console
+          console.error("Failed to set initial camera state", cameraId);
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to set initial camera state", e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleMaximize = () => {
     setIsMaximized(!isMaximized);
@@ -52,7 +100,7 @@ export function CameraFeed({ cameraId, title, initialActive = false }: CameraFee
               </div>
             </div>
           )}
-          
+
           {/* Control Overlay */}
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/80 to-transparent p-6">
             <div className="flex items-center justify-between">
@@ -63,15 +111,21 @@ export function CameraFeed({ cameraId, title, initialActive = false }: CameraFee
                   onClick={toggleStream}
                   className="flex items-center gap-2"
                 >
-                  {isActive ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                  {isActive ? (
+                    <Pause className="h-5 w-5" />
+                  ) : (
+                    <Play className="h-5 w-5" />
+                  )}
                   {isActive ? "Stop" : "Start"}
                 </Button>
-                <StatusIndicator 
-                  status={isConnected ? (isActive ? "online" : "warning") : "offline"}
+                <StatusIndicator
+                  status={
+                    isConnected ? (isActive ? "online" : "warning") : "offline"
+                  }
                   label={isActive ? "LIVE" : "STANDBY"}
                 />
               </div>
-              
+
               <div className="flex gap-2">
                 <Button variant="ghost" size="default">
                   <Settings className="h-5 w-5" />
@@ -82,7 +136,7 @@ export function CameraFeed({ cameraId, title, initialActive = false }: CameraFee
               </div>
             </div>
           </div>
-          
+
           {/* Positional Data Overlay */}
           <div className="absolute bottom-0 right-0 m-6 mb-20">
             <PositionalData />
@@ -97,7 +151,7 @@ export function CameraFeed({ cameraId, title, initialActive = false }: CameraFee
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold">{title}</CardTitle>
-          <StatusIndicator 
+          <StatusIndicator
             status={isConnected ? (isActive ? "online" : "warning") : "offline"}
             label={isActive ? "LIVE" : "STANDBY"}
           />
@@ -120,7 +174,7 @@ export function CameraFeed({ cameraId, title, initialActive = false }: CameraFee
               </div>
             </div>
           )}
-          
+
           {/* Control Overlay */}
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/80 to-transparent p-3">
             <div className="flex items-center justify-between">
@@ -130,10 +184,14 @@ export function CameraFeed({ cameraId, title, initialActive = false }: CameraFee
                 onClick={toggleStream}
                 className="flex items-center gap-2"
               >
-                {isActive ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                {isActive ? (
+                  <Pause className="h-4 w-4" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
                 {isActive ? "Stop" : "Start"}
               </Button>
-              
+
               <div className="flex gap-1">
                 <Button variant="ghost" size="sm">
                   <Settings className="h-4 w-4" />

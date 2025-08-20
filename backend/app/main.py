@@ -6,6 +6,7 @@ import os
 import asyncio
 import threading
 import time
+from pydantic import BaseModel
 
 # ROS 2 imports
 try:
@@ -47,13 +48,14 @@ frame_store = FrameStore()
 class CameraBridgeNode(Node):
     def __init__(self, cam1_topic: str, cam2_topic: str) -> None:  # type: ignore[override]
         super().__init__("maree_camera_bridge")
-        # Subscriptions to compressed image topics
-        self.create_subscription(
-            CompressedImage, cam1_topic, self._on_cam1, qos_profile=10
-        )
-        self.create_subscription(
-            CompressedImage, cam2_topic, self._on_cam2, qos_profile=10
-        )
+        self.cam1_topic = cam1_topic
+        self.cam2_topic = cam2_topic
+        self._cam1_sub = None
+        self._cam2_sub = None
+        # Start active by default so UI shows feeds on load; can be toggled off via control API
+        self._cam1_active = True
+        self._cam2_active = True
+        self._update_subscriptions()
 
     def _on_cam1(self, msg: CompressedImage) -> None:
         # msg.data is bytes for CompressedImage
@@ -61,6 +63,32 @@ class CameraBridgeNode(Node):
 
     def _on_cam2(self, msg: CompressedImage) -> None:
         frame_store.set_frame("cam2", bytes(msg.data))
+
+    def _update_subscriptions(self) -> None:
+        # Update cam1 subscription
+        if self._cam1_active and self._cam1_sub is None:
+            self._cam1_sub = self.create_subscription(
+                CompressedImage, self.cam1_topic, self._on_cam1, qos_profile=10
+            )
+        elif not self._cam1_active and self._cam1_sub is not None:
+            self.destroy_subscription(self._cam1_sub)
+            self._cam1_sub = None
+
+        # Update cam2 subscription
+        if self._cam2_active and self._cam2_sub is None:
+            self._cam2_sub = self.create_subscription(
+                CompressedImage, self.cam2_topic, self._on_cam2, qos_profile=10
+            )
+        elif not self._cam2_active and self._cam2_sub is not None:
+            self.destroy_subscription(self._cam2_sub)
+            self._cam2_sub = None
+
+    def set_camera_active(self, camera_id: str, active: bool) -> None:
+        if camera_id == "cam1":
+            self._cam1_active = active
+        elif camera_id == "cam2":
+            self._cam2_active = active
+        self._update_subscriptions()
 
 
 class RosRunner:
@@ -104,7 +132,7 @@ class RosRunner:
 
 ros_runner = RosRunner(CAM1_TOPIC, CAM2_TOPIC)
 
-
+# Lifespan must be defined before creating the FastAPI app
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     # Start ROS bridge on app startup
@@ -115,7 +143,7 @@ async def lifespan(_: FastAPI):
         # Stop ROS bridge on shutdown
         ros_runner.stop()
 
-
+# Create app before route decorators use it
 app = FastAPI(title="Maree Backend", lifespan=lifespan)
 
 app.add_middleware(
@@ -125,6 +153,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Camera control model and endpoint (placed after app is created)
+class CameraControl(BaseModel):
+    active: bool
+
+
+@app.post("/camera/{camera_id}/control")
+async def camera_control(camera_id: str, payload: CameraControl):
+    if camera_id not in ("cam1", "cam2"):
+        raise HTTPException(status_code=404, detail="Unknown camera id")
+
+    if ros_runner._node:
+        ros_runner._node.set_camera_active(camera_id, payload.active)
+
+    return {"camera_id": camera_id, "active": payload.active}
 
 
 @app.get("/health")
