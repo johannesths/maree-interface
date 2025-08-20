@@ -8,6 +8,7 @@ type TopicsConfig = {
   cam2_topic: string;
   odom_topic: string;
   operation_mode_topic: string;
+  messages_topic: string;
 };
 
 export function SettingsPage() {
@@ -23,6 +24,7 @@ export function SettingsPage() {
     cam2_topic: "",
     odom_topic: "",
     operation_mode_topic: "",
+    messages_topic: "",
   });
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -81,6 +83,18 @@ export function SettingsPage() {
               setCfg((c) => ({ ...c, cam1_topic: e.target.value }))
             }
             placeholder="/camera/left/image_raw/compressed"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm text-muted-foreground">
+            Messages Topic
+          </label>
+          <Input
+            value={cfg.messages_topic}
+            onChange={(e) =>
+              setCfg((c) => ({ ...c, messages_topic: e.target.value }))
+            }
+            placeholder="/messages"
           />
         </div>
         <div className="space-y-2">

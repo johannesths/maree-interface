@@ -1,6 +1,8 @@
 import { BatteryStatus } from "./BatteryStatus";
 import { SystemStatus } from "./SystemStatus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
+import { Navigation, Gauge } from "lucide-react";
 
 interface TelemetryData {
   battery: {
@@ -22,14 +24,70 @@ interface TelemetryGridProps {
 }
 
 export function TelemetryGrid({ telemetry }: TelemetryGridProps) {
+  const backendUrl = useMemo(() => {
+    const fromEnv = (import.meta as any).env?.VITE_BACKEND_URL as
+      | string
+      | undefined;
+    return fromEnv?.replace(/\/$/, "") || "http://localhost:8000";
+  }, []);
+
+  type PosData = {
+    x: number;
+    y: number;
+    yaw_deg: number;
+    twist_linear_x: number;
+    twist_linear_y: number;
+    twist_angular_z: number;
+  };
+
+  const [pos, setPos] = useState<PosData>({
+    x: 0,
+    y: 0,
+    yaw_deg: 0,
+    twist_linear_x: 0,
+    twist_linear_y: 0,
+    twist_angular_z: 0,
+  });
+  const [posConnected, setPosConnected] = useState(false);
+
+  useEffect(() => {
+    const wsProtocol = backendUrl.startsWith("https") ? "wss" : "ws";
+    const ws = new WebSocket(
+      `${wsProtocol}://${backendUrl.replace(/^https?:\/\//, "")}/ws/position`
+    );
+
+    ws.onopen = () => setPosConnected(true);
+    ws.onclose = () => setPosConnected(false);
+    ws.onerror = () => setPosConnected(false);
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data) as Partial<PosData>;
+        setPos((prev) => ({
+          x: data.x ?? prev.x,
+          y: data.y ?? prev.y,
+          yaw_deg: data.yaw_deg ?? prev.yaw_deg,
+          twist_linear_x: data.twist_linear_x ?? prev.twist_linear_x,
+          twist_linear_y: data.twist_linear_y ?? prev.twist_linear_y,
+          twist_angular_z: data.twist_angular_z ?? prev.twist_angular_z,
+        }));
+      } catch {
+        // ignore malformed
+      }
+    };
+
+    return () => ws.close();
+  }, [backendUrl]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <BatteryStatus {...telemetry.battery} />
       <SystemStatus {...telemetry.system} />
-      
+
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-semibold">Environmental Data</CardTitle>
+          <CardTitle className="text-base font-semibold">
+            Environmental Data
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4 text-sm">
@@ -55,21 +113,56 @@ export function TelemetryGrid({ telemetry }: TelemetryGridProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-semibold">Position Data</CardTitle>
+          <CardTitle className="text-base font-semibold">
+            Position Data
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3 text-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-muted-foreground">WebSocket</span>
+            <span
+              className={`inline-block w-2 h-2 rounded-full ${
+                posConnected ? "bg-green-500" : "bg-red-500"
+              }`}
+              aria-label={posConnected ? "online" : "offline"}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <div className="text-muted-foreground">Coordinates</div>
-              <div className="font-mono font-semibold">18.38°S 77.58°E</div>
+              <div className="text-muted-foreground">x</div>
+              <div className="font-mono font-semibold">{pos.x.toFixed(3)}</div>
             </div>
             <div>
-              <div className="text-muted-foreground">Heading</div>
-              <div className="font-mono font-semibold">127° SE</div>
+              <div className="text-muted-foreground">y</div>
+              <div className="font-mono font-semibold">{pos.y.toFixed(3)}</div>
             </div>
-            <div>
-              <div className="text-muted-foreground">Distance Traveled</div>
-              <div className="font-mono font-semibold">24.7 km</div>
+            <div className="flex items-center gap-1">
+              <Navigation className="w-3 h-3 text-muted-foreground" />
+              <div className="text-muted-foreground">yaw</div>
+              <div className="font-mono font-semibold ml-auto">
+                {pos.yaw_deg.toFixed(1)}°
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <Gauge className="w-3 h-3 text-muted-foreground" />
+              <div className="text-muted-foreground">twist.lin.x</div>
+              <div className="font-mono font-semibold ml-auto">
+                {pos.twist_linear_x.toFixed(2)} m/s
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <Gauge className="w-3 h-3 text-muted-foreground" />
+              <div className="text-muted-foreground">twist.lin.y</div>
+              <div className="font-mono font-semibold ml-auto">
+                {pos.twist_linear_y.toFixed(2)} m/s
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <Gauge className="w-3 h-3 text-muted-foreground" />
+              <div className="text-muted-foreground">twist.ang.z</div>
+              <div className="font-mono font-semibold ml-auto">
+                {pos.twist_angular_z.toFixed(2)} rad/s
+              </div>
             </div>
           </div>
         </CardContent>

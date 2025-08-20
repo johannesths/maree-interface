@@ -102,7 +102,7 @@ export function CameraFeed({
           )}
 
           {/* Control Overlay */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/80 to-transparent p-6">
+          <div className="absolute bottom-0 left-0 right-0 from-background/80 to-transparent p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <Button
@@ -176,7 +176,7 @@ export function CameraFeed({
           )}
 
           {/* Control Overlay */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/80 to-transparent p-3">
+          <div className="absolute bottom-0 left-0 right-0 from-background/80 to-transparent p-3">
             <div className="flex items-center justify-between">
               <Button
                 variant="secondary"

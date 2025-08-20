@@ -17,7 +17,6 @@ export function useOperationMode() {
   useEffect(() => {
     const fetchOperationMode = async () => {
       try {
-        // Replace with your actual HTTP endpoint
         const response = await fetch(`${backendUrl}/api/operation-mode`);
 
         if (!response.ok) {
