@@ -9,6 +9,7 @@ type TopicsConfig = {
   odom_topic: string;
   operation_mode_topic: string;
   messages_topic: string;
+  battery_voltage_topic: string;
 };
 
 export function SettingsPage() {
@@ -25,6 +26,7 @@ export function SettingsPage() {
     odom_topic: "",
     operation_mode_topic: "",
     messages_topic: "",
+    battery_voltage_topic: "",
   });
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -87,18 +89,6 @@ export function SettingsPage() {
         </div>
         <div className="space-y-2">
           <label className="text-sm text-muted-foreground">
-            Messages Topic
-          </label>
-          <Input
-            value={cfg.messages_topic}
-            onChange={(e) =>
-              setCfg((c) => ({ ...c, messages_topic: e.target.value }))
-            }
-            placeholder="/messages"
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm text-muted-foreground">
             Camera 2 Topic
           </label>
           <Input
@@ -107,6 +97,30 @@ export function SettingsPage() {
               setCfg((c) => ({ ...c, cam2_topic: e.target.value }))
             }
             placeholder="/camera/right/image_raw/compressed"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm text-muted-foreground">
+            Battery Voltage Topic
+          </label>
+          <Input
+            value={cfg.battery_voltage_topic}
+            onChange={(e) =>
+              setCfg((c) => ({ ...c, battery_voltage_topic: e.target.value }))
+            }
+            placeholder="/battery/voltage"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm text-muted-foreground">
+            Messages Topic
+          </label>
+          <Input
+            value={cfg.messages_topic}
+            onChange={(e) =>
+              setCfg((c) => ({ ...c, messages_topic: e.target.value }))
+            }
+            placeholder="/messages"
           />
         </div>
         <div className="space-y-2">

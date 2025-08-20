@@ -5,7 +5,7 @@ import { Navigation } from "./Navigation";
 import { StatusBar } from "./StatusBar";
 import { CameraGrid } from "./CameraGrid";
 import { TelemetryGrid } from "./TelemetryGrid";
-import { SettingsPage } from "./SettingsPage";
+import { SettingsPage } from "@/components/SettingsPage";
 import { MessagesSidebar } from "./MessagesSidebar";
 
 export function RoverDashboard() {

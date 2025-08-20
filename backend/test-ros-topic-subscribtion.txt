@@ -1,0 +1,42 @@
+# Battery Voltage
+ros2 topic pub -r 1 /msg std_msgs/msg/Float32 "{data: 3.14}"
+
+# Odometry
+ros2 topic pub -r 1 /odom nav_msgs/msg/Odometry "{
+  header: {
+    stamp: {sec: 0, nanosec: 0},
+    frame_id: 'odom'
+  },
+  child_frame_id: 'base_link',
+  pose: {
+    pose: {
+      position: {x: 1.0, y: 2.0, z: 0.0},
+      orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}
+    },
+    covariance: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  },
+  twist: {
+    twist: {
+      linear:  {x: 0.1, y: 0.0, z: 0.0},
+      angular: {x: 0.0, y: 0.0, z: 0.2}
+    },
+    covariance: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+  }
+}"
+
+# Video feeds
+use ros bag in the gitlab
+
+# Joystick Messages
+ros2 topic pub -r 2 /msg std_msgs/msg/String "{data: 'Joystick stuff yea yea'}"
+

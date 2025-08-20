@@ -49,6 +49,8 @@ export function TelemetryGrid({ telemetry }: TelemetryGridProps) {
     twist_angular_z: 0,
   });
   const [posConnected, setPosConnected] = useState(false);
+  const [batteryVoltage, setBatteryVoltage] = useState<number | null>(null);
+  const [batteryUpdatedAt, setBatteryUpdatedAt] = useState<number | null>(null);
 
   useEffect(() => {
     const wsProtocol = backendUrl.startsWith("https") ? "wss" : "ws";
@@ -78,9 +80,41 @@ export function TelemetryGrid({ telemetry }: TelemetryGridProps) {
     return () => ws.close();
   }, [backendUrl]);
 
+  // Poll battery voltage periodically via HTTP
+  useEffect(() => {
+    let isMounted = true;
+    const fetchVoltage = async () => {
+      try {
+        const res = await fetch(`${backendUrl}/api/battery/voltage`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!isMounted) return;
+        setBatteryVoltage(
+          typeof data.voltage === "number" ? data.voltage : null
+        );
+        setBatteryUpdatedAt(
+          typeof data.updated_at === "number" ? data.updated_at : null
+        );
+      } catch {
+        // ignore
+      }
+    };
+    fetchVoltage();
+    const id = setInterval(fetchVoltage, 2000);
+    return () => {
+      isMounted = false;
+      clearInterval(id);
+    };
+  }, [backendUrl]);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <BatteryStatus {...telemetry.battery} />
+      <BatteryStatus
+        percentage={telemetry.battery.percentage}
+        voltage={batteryVoltage ?? telemetry.battery.voltage}
+        current={telemetry.battery.current}
+        temperature={telemetry.battery.temperature}
+      />
       <SystemStatus {...telemetry.system} />
 
       <Card>
@@ -93,7 +127,7 @@ export function TelemetryGrid({ telemetry }: TelemetryGridProps) {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <div className="text-muted-foreground">Ambient Temp</div>
-              <div className="font-mono font-semibold">-47°C</div>
+              <div className="font-mono font-semibold">18°C</div>
             </div>
             <div>
               <div className="text-muted-foreground">Pressure</div>
@@ -101,11 +135,11 @@ export function TelemetryGrid({ telemetry }: TelemetryGridProps) {
             </div>
             <div>
               <div className="text-muted-foreground">Wind Speed</div>
-              <div className="font-mono font-semibold">12 m/s</div>
+              <div className="font-mono font-semibold">8 m/s</div>
             </div>
             <div>
-              <div className="text-muted-foreground">Solar Irradiance</div>
-              <div className="font-mono font-semibold">432 W/m²</div>
+              <div className="text-muted-foreground">Rain</div>
+              <div className="font-mono font-semibold">25%</div>
             </div>
           </div>
         </CardContent>
